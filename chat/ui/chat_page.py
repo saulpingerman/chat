@@ -185,15 +185,28 @@ def show_chat_page():
             display: flex;
             flex-direction: row !important;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.25rem;
+        }
+        .st-key-ATTACH-BTN {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .st-key-ATTACH-BTN button {
-            background: transparent !important;
-            border: none !important;
-            font-size: 1.5rem !important;
-            padding: 0.5rem !important;
-            min-height: 0 !important;
-            width: auto !important;
+            background: #262730 !important;
+            border: 1px solid #4a4a5a !important;
+            border-radius: 0.5rem !important;
+            font-size: 1.2rem !important;
+            padding: 0.6rem 0.8rem !important;
+            min-height: 42px !important;
+            width: 50px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .st-key-ATTACH-BTN button:hover {
+            background: #3a3a4a !important;
+            border-color: #6a6a7a !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -201,7 +214,7 @@ def show_chat_page():
     # Use st._bottom to pin to bottom like chat_input does
     with st._bottom:
         with st.container(key="BOTTOM-CONTAINER"):
-            col1, col2 = st.columns([1, 20])
+            col1, col2 = st.columns([1, 30])
             with col1:
                 if st.button("📎", key="ATTACH-BTN", help="Attach file"):
                     upload_dialog()
