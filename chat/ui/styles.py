@@ -36,6 +36,8 @@ MAIN_CSS = """
 section[data-testid="stSidebar"] {
     background-color: #262730;
     padding: 1rem;
+    min-width: 280px !important;
+    width: 280px !important;
 }
 
 section[data-testid="stSidebar"] .block-container {
@@ -45,6 +47,12 @@ section[data-testid="stSidebar"] .block-container {
 /* Ensure sidebar text is visible in dark mode */
 section[data-testid="stSidebar"] * {
     color: inherit;
+}
+
+/* Fix delete button in saved conversations list */
+section[data-testid="stSidebar"] .stButton button {
+    padding: 0.4rem 0.6rem !important;
+    min-width: 40px !important;
 }
 
 /* Button styling */
