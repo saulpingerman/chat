@@ -244,12 +244,20 @@ def show_chat_page():
             "files": [{"name": f["name"], "type": f["type"]} for f in processed_files]
         })
 
-        # Save user message to database
+        # Save user message to database (text only - files are not persisted)
         conv_id = st.session_state["current_conversation"]
-        add_message(conv_id, "user", api_message["content"])
+        db_content = [{"text": prompt}]
+        if processed_files:
+            file_names = ", ".join([f["name"] for f in processed_files])
+            db_content = [{"text": f"[Attached: {file_names}]\n\n{prompt}"}]
+        add_message(conv_id, "user", db_content)
 
-        # Get all messages for API
+        # Get all messages for API (history from database)
         all_messages = get_messages_for_api(conv_id)
+
+        # Replace the last message with api_message that has actual file bytes
+        if processed_files and all_messages:
+            all_messages[-1] = api_message
 
         # Stream response from Claude
         with st.chat_message("assistant"):
