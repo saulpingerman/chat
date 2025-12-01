@@ -1,0 +1,21 @@
+# CHAT Dependencies
+
+# Web framework
+streamlit>=1.28.0
+
+# AWS SDK
+boto3>=1.34.0
+botocore>=1.34.0
+
+# Authentication
+PyJWT>=2.8.0
+
+# Document processing
+python-docx>=1.1.0
+PyPDF2>=3.0.0
+
+# Data handling
+pandas>=2.0.0
+
+# Image processing (for Streamlit)
+pillow>=10.0.0
