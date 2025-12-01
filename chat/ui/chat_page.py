@@ -181,39 +181,32 @@ def show_chat_page():
     # CSS for bottom layout
     st.markdown("""
         <style>
-        .st-key-bottom-row {
-            position: fixed;
-            bottom: 0;
-            left: 240px;
-            right: 0;
-            padding: 1rem;
-            background: #0e1117;
-            z-index: 100;
+        .st-key-BOTTOM-CONTAINER {
             display: flex;
+            flex-direction: row !important;
             align-items: center;
             gap: 0.5rem;
         }
-        .st-key-attach-btn button {
+        .st-key-ATTACH-BTN button {
             background: transparent !important;
             border: none !important;
             font-size: 1.5rem !important;
             padding: 0.5rem !important;
             min-height: 0 !important;
-        }
-        /* Add padding at bottom so chat doesn't get hidden */
-        .main .block-container {
-            padding-bottom: 100px !important;
+            width: auto !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Bottom row with paperclip and chat input
-    col1, col2 = st.columns([1, 20])
-    with col1:
-        if st.button("📎", key="attach-btn", help="Attach file"):
-            upload_dialog()
-    with col2:
-        prompt = st.chat_input("How can I help you today?")
+    # Use st._bottom to pin to bottom like chat_input does
+    with st._bottom:
+        with st.container(key="BOTTOM-CONTAINER"):
+            col1, col2 = st.columns([1, 20])
+            with col1:
+                if st.button("📎", key="ATTACH-BTN", help="Attach file"):
+                    upload_dialog()
+            with col2:
+                prompt = st.chat_input("How can I help you today?")
 
     # Handle chat input
     if prompt:
