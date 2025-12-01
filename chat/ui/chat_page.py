@@ -155,105 +155,65 @@ def show_chat_page():
     # Display chat messages
     display_chat_messages()
 
-    # CSS to style the file uploader as a small paperclip button at bottom left
+    # File upload dialog
+    @st.dialog("Attach File")
+    def upload_dialog():
+        uploaded_file = st.file_uploader(
+            "Choose a file",
+            type=[ext.lstrip('.') for ext in ALLOWED_EXTENSIONS.keys()],
+            key="dialog-uploader"
+        )
+        if st.button("Attach", type="primary", disabled=uploaded_file is None):
+            if uploaded_file is not None:
+                try:
+                    file_data = uploaded_file.read()
+                    file_info = process_file(uploaded_file.name, file_data)
+                    current_files = st.session_state.get("pending_files", [])
+                    if not any(f["name"] == file_info["name"] for f in current_files):
+                        current_files.append(file_info)
+                        st.session_state["pending_files"] = current_files
+                    st.rerun()
+                except FileProcessingError as e:
+                    st.error(f"Error: {e}")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    # CSS for bottom layout
     st.markdown("""
         <style>
-        /* Hide the file uploader container's extra elements */
-        .stFileUploader > div > div:first-child {
-            display: none !important;
+        .st-key-bottom-row {
+            position: fixed;
+            bottom: 0;
+            left: 240px;
+            right: 0;
+            padding: 1rem;
+            background: #0e1117;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-
-        /* Style the actual file uploader to look like a paperclip button */
-        .st-key-paperclip-uploader {
-            position: fixed !important;
-            bottom: 0.7rem !important;
-            left: 240px !important;
-            z-index: 1000 !important;
-            width: 50px !important;
-            height: 50px !important;
-        }
-
-        .st-key-paperclip-uploader > div {
+        .st-key-attach-btn button {
             background: transparent !important;
             border: none !important;
-            padding: 0 !important;
-        }
-
-        .st-key-paperclip-uploader section {
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            min-height: 0 !important;
-        }
-
-        .st-key-paperclip-uploader section > div {
-            display: none !important;
-        }
-
-        .st-key-paperclip-uploader section > button {
-            background: transparent !important;
-            border: none !important;
-            color: #888 !important;
             font-size: 1.5rem !important;
             padding: 0.5rem !important;
             min-height: 0 !important;
-            width: 40px !important;
-            height: 40px !important;
         }
-
-        .st-key-paperclip-uploader section > button:hover {
-            color: #fff !important;
-            background: transparent !important;
-        }
-
-        .st-key-paperclip-uploader section > button::before {
-            content: "📎" !important;
-            font-size: 1.5rem !important;
-        }
-
-        .st-key-paperclip-uploader section > button span {
-            display: none !important;
-        }
-
-        /* Hide the small text and instructions */
-        .st-key-paperclip-uploader small {
-            display: none !important;
-        }
-
-        /* Ensure sidebar doesn't cover the button */
-        @media (max-width: 768px) {
-            .st-key-paperclip-uploader {
-                left: 1rem !important;
-            }
+        /* Add padding at bottom so chat doesn't get hidden */
+        .main .block-container {
+            padding-bottom: 100px !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Place file uploader (styled as paperclip button)
-    uploaded_file = st.file_uploader(
-        "attach",
-        type=[ext.lstrip('.') for ext in ALLOWED_EXTENSIONS.keys()],
-        key="paperclip-uploader",
-        label_visibility="collapsed"
-    )
-
-    # Process uploaded file immediately
-    if uploaded_file is not None:
-        try:
-            file_data = uploaded_file.read()
-            file_info = process_file(uploaded_file.name, file_data)
-            current_files = st.session_state.get("pending_files", [])
-            # Check if file already added
-            if not any(f["name"] == file_info["name"] for f in current_files):
-                current_files.append(file_info)
-                st.session_state["pending_files"] = current_files
-        except FileProcessingError as e:
-            st.error(f"Error processing file: {e}")
-        except Exception as e:
-            st.error(f"Error: {e}")
-
-    # Chat input at bottom
-    prompt = st.chat_input("How can I help you today?")
+    # Bottom row with paperclip and chat input
+    col1, col2 = st.columns([1, 20])
+    with col1:
+        if st.button("📎", key="attach-btn", help="Attach file"):
+            upload_dialog()
+    with col2:
+        prompt = st.chat_input("How can I help you today?")
 
     # Handle chat input
     if prompt:
