@@ -2,12 +2,13 @@
 Main chat UI for CHAT.
 """
 import streamlit as st
-import json
 import base64
 from typing import List, Dict, Any, Optional
 
+from st_bridge import bridge, html as st_html
+
 from chat.config import DEFAULT_SYSTEM_PROMPT, MAX_FILE_SIZE_MB, ALLOWED_EXTENSIONS
-from chat.llm_client import create_llm_client, format_message_with_files
+from chat.llm_client import create_llm_client
 from chat.db.models import (
     create_conversation, add_message, update_conversation,
     get_messages_for_api, update_user_tokens, get_conversation
@@ -23,6 +24,8 @@ def initialize_chat_state():
         st.session_state["current_conversation"] = None
     if "pending_files" not in st.session_state:
         st.session_state["pending_files"] = []
+
+
 
 
 def display_chat_messages():
@@ -143,76 +146,121 @@ def show_chat_page():
         conv = create_conversation(user.id, "New Chat")
         st.session_state["current_conversation"] = conv.id
 
-    # File upload dialog state
-    if "show_file_upload" not in st.session_state:
-        st.session_state["show_file_upload"] = False
-
-    # Show file uploader at top if toggled (before chat messages)
-    uploaded_files = None
-    if st.session_state.get("show_file_upload"):
-        uploaded_files = st.file_uploader(
-            "Attach files",
-            accept_multiple_files=True,
-            type=[ext.lstrip('.') for ext in ALLOWED_EXTENSIONS.keys()],
-            help=f"Max {MAX_FILE_SIZE_MB}MB each.",
-            key="file_uploader",
-            label_visibility="collapsed"
-        )
-        if uploaded_files:
-            file_names = ", ".join([f.name for f in uploaded_files])
-            st.caption(f"📎 {file_names}")
+    # Show pending files indicator if any
+    if st.session_state.get("pending_files"):
+        file_names = ", ".join([f["name"] for f in st.session_state["pending_files"]])
+        st.info(f"📎 Attached: {file_names}")
+        if st.button("✕ Clear attachments", key="clear_files"):
+            st.session_state["pending_files"] = []
+            st.rerun()
 
     # Display chat messages
     display_chat_messages()
 
-    # CSS for bottom input layout with button next to chat input
-    st.markdown(
-        """
+    # Get allowed file extensions for the file input
+    allowed_extensions = ",".join(ALLOWED_EXTENSIONS.keys())
+    max_size_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
+
+    # Bridge to receive file data from JavaScript
+    file_data = bridge("file-upload-bridge", default=None)
+
+    # Process received file data
+    if file_data and isinstance(file_data, dict) and file_data.get("name"):
+        try:
+            # Decode base64 file data
+            file_bytes = base64.b64decode(file_data["data"])
+            file_info = process_file(file_data["name"], file_bytes)
+            # Add to pending files
+            current_files = st.session_state.get("pending_files", [])
+            # Check if file already added (avoid duplicates on rerun)
+            if not any(f["name"] == file_info["name"] for f in current_files):
+                current_files.append(file_info)
+                st.session_state["pending_files"] = current_files
+                st.rerun()
+        except FileProcessingError as e:
+            st.error(f"Error processing file: {e}")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+    # CSS and HTML for the paperclip button with hidden file input
+    st_html(f'''
         <style>
-        .st-key-BOTTOM-CONTAINER, .st-key-BUTTONS-CONTAINER {
-            display: flex;
-            flex-direction: row !important;
-            flex-wrap: nowrap;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        .st-key-BUTTONS-CONTAINER[data-testid="stVerticalBlock"] div {
-            width: max-content !important;
-        }
-        .st-key-BOTTOM-CONTAINER > div:first-child {
-            min-width: max-content;
-            max-width: max-content;
-        }
-        .st-key-BOTTOM-CONTAINER > div:last-child {
-            flex-grow: 1;
-        }
+            #chat-file-input {{
+                display: none;
+            }}
+            #paperclip-btn {{
+                background: transparent;
+                border: none;
+                font-size: 1.5rem;
+                cursor: pointer;
+                padding: 0.5rem;
+                opacity: 0.7;
+                transition: opacity 0.2s;
+                position: fixed;
+                bottom: 1rem;
+                left: calc(var(--sidebar-width, 21rem) + 1rem);
+                z-index: 1000;
+            }}
+            #paperclip-btn:hover {{
+                opacity: 1;
+            }}
+            @media (max-width: 768px) {{
+                #paperclip-btn {{
+                    left: 1rem;
+                }}
+            }}
         </style>
-        """,
-        unsafe_allow_html=True
-    )
+        <input type="file" id="chat-file-input" accept="{allowed_extensions}" />
+        <button id="paperclip-btn" title="Attach file">📎</button>
+        <script>
+            (function() {{
+                const fileInput = document.getElementById('chat-file-input');
+                const btn = document.getElementById('paperclip-btn');
 
-    # Use st._bottom to place elements at the bottom like chat_input does
-    with st._bottom:
-        with st.container(key="BOTTOM-CONTAINER"):
-            buttons_container = st.container(key="BUTTONS-CONTAINER")
-            input_container = st.container(key="INPUT-CONTAINER")
+                btn.onclick = function(e) {{
+                    e.preventDefault();
+                    fileInput.click();
+                }};
 
-    # Add attach button to buttons container
-    with buttons_container:
-        if st.button("📎", key="attach_btn_main", help="Attach files"):
-            st.session_state["show_file_upload"] = not st.session_state.get("show_file_upload", False)
-            st.rerun()
+                fileInput.onchange = function(e) {{
+                    const file = e.target.files[0];
+                    if (!file) return;
 
-    # Add chat input to input container
-    with input_container:
-        prompt = st.chat_input("How can I help you today?")
+                    // Check file size
+                    if (file.size > {max_size_bytes}) {{
+                        alert('File too large. Maximum size is {MAX_FILE_SIZE_MB}MB');
+                        fileInput.value = '';
+                        return;
+                    }}
+
+                    // Read file as base64
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {{
+                        const base64 = evt.target.result.split(',')[1];
+                        // Send to Python via bridge
+                        window.top.stBridges.send('file-upload-bridge', {{
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            data: base64
+                        }});
+                    }};
+                    reader.readAsDataURL(file);
+
+                    // Clear input so same file can be selected again
+                    fileInput.value = '';
+                }};
+            }})();
+        </script>
+    ''', iframe=False)
+
+    # Chat input at bottom
+    prompt = st.chat_input("How can I help you today?")
 
     # Handle chat input
     if prompt:
-        # Process any uploaded files
-        processed_files = []
-        if uploaded_files:
-            processed_files = process_uploaded_files(uploaded_files)
+        # Get any pending files
+        processed_files = st.session_state.get("pending_files", [])
 
         # Build API message
         api_message = build_api_message(prompt, processed_files)
@@ -300,5 +348,8 @@ def show_chat_page():
             first_msg = st.session_state["messages"][0]["content"]
             new_title = first_msg[:50] + "..." if len(first_msg) > 50 else first_msg
             update_conversation(conv_id, title=new_title)
+
+        # Clear pending files after sending
+        st.session_state["pending_files"] = []
 
         st.rerun()
