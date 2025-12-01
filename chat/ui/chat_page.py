@@ -5,8 +5,6 @@ import streamlit as st
 import base64
 from typing import List, Dict, Any, Optional
 
-from st_bridge import bridge, html as st_html
-
 from chat.config import DEFAULT_SYSTEM_PROMPT, MAX_FILE_SIZE_MB, ALLOWED_EXTENSIONS
 from chat.llm_client import create_llm_client
 from chat.db.models import (
@@ -157,102 +155,102 @@ def show_chat_page():
     # Display chat messages
     display_chat_messages()
 
-    # Get allowed file extensions for the file input
-    allowed_extensions = ",".join(ALLOWED_EXTENSIONS.keys())
-    max_size_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
+    # CSS to style the file uploader as a small paperclip button at bottom left
+    st.markdown("""
+        <style>
+        /* Hide the file uploader container's extra elements */
+        .stFileUploader > div > div:first-child {
+            display: none !important;
+        }
 
-    # Bridge to receive file data from JavaScript
-    file_data = bridge("file-upload-bridge", default=None)
+        /* Style the actual file uploader to look like a paperclip button */
+        .st-key-paperclip-uploader {
+            position: fixed !important;
+            bottom: 0.7rem !important;
+            left: 240px !important;
+            z-index: 1000 !important;
+            width: 50px !important;
+            height: 50px !important;
+        }
 
-    # Process received file data
-    if file_data and isinstance(file_data, dict) and file_data.get("name"):
+        .st-key-paperclip-uploader > div {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+
+        .st-key-paperclip-uploader section {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            min-height: 0 !important;
+        }
+
+        .st-key-paperclip-uploader section > div {
+            display: none !important;
+        }
+
+        .st-key-paperclip-uploader section > button {
+            background: transparent !important;
+            border: none !important;
+            color: #888 !important;
+            font-size: 1.5rem !important;
+            padding: 0.5rem !important;
+            min-height: 0 !important;
+            width: 40px !important;
+            height: 40px !important;
+        }
+
+        .st-key-paperclip-uploader section > button:hover {
+            color: #fff !important;
+            background: transparent !important;
+        }
+
+        .st-key-paperclip-uploader section > button::before {
+            content: "📎" !important;
+            font-size: 1.5rem !important;
+        }
+
+        .st-key-paperclip-uploader section > button span {
+            display: none !important;
+        }
+
+        /* Hide the small text and instructions */
+        .st-key-paperclip-uploader small {
+            display: none !important;
+        }
+
+        /* Ensure sidebar doesn't cover the button */
+        @media (max-width: 768px) {
+            .st-key-paperclip-uploader {
+                left: 1rem !important;
+            }
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Place file uploader (styled as paperclip button)
+    uploaded_file = st.file_uploader(
+        "attach",
+        type=[ext.lstrip('.') for ext in ALLOWED_EXTENSIONS.keys()],
+        key="paperclip-uploader",
+        label_visibility="collapsed"
+    )
+
+    # Process uploaded file immediately
+    if uploaded_file is not None:
         try:
-            # Decode base64 file data
-            file_bytes = base64.b64decode(file_data["data"])
-            file_info = process_file(file_data["name"], file_bytes)
-            # Add to pending files
+            file_data = uploaded_file.read()
+            file_info = process_file(uploaded_file.name, file_data)
             current_files = st.session_state.get("pending_files", [])
-            # Check if file already added (avoid duplicates on rerun)
+            # Check if file already added
             if not any(f["name"] == file_info["name"] for f in current_files):
                 current_files.append(file_info)
                 st.session_state["pending_files"] = current_files
-                st.rerun()
         except FileProcessingError as e:
             st.error(f"Error processing file: {e}")
         except Exception as e:
             st.error(f"Error: {e}")
-
-    # CSS and HTML for the paperclip button with hidden file input
-    st_html(f'''
-        <style>
-            #chat-file-input {{
-                display: none;
-            }}
-            #paperclip-btn {{
-                background: transparent;
-                border: none;
-                font-size: 1.5rem;
-                cursor: pointer;
-                padding: 0.5rem;
-                opacity: 0.7;
-                transition: opacity 0.2s;
-                position: fixed;
-                bottom: 1rem;
-                left: calc(var(--sidebar-width, 21rem) + 1rem);
-                z-index: 1000;
-            }}
-            #paperclip-btn:hover {{
-                opacity: 1;
-            }}
-            @media (max-width: 768px) {{
-                #paperclip-btn {{
-                    left: 1rem;
-                }}
-            }}
-        </style>
-        <input type="file" id="chat-file-input" accept="{allowed_extensions}" />
-        <button id="paperclip-btn" title="Attach file">📎</button>
-        <script>
-            (function() {{
-                const fileInput = document.getElementById('chat-file-input');
-                const btn = document.getElementById('paperclip-btn');
-
-                btn.onclick = function(e) {{
-                    e.preventDefault();
-                    fileInput.click();
-                }};
-
-                fileInput.onchange = function(e) {{
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    // Check file size
-                    if (file.size > {max_size_bytes}) {{
-                        alert('File too large. Maximum size is {MAX_FILE_SIZE_MB}MB');
-                        fileInput.value = '';
-                        return;
-                    }}
-
-                    // Read file as base64
-                    const reader = new FileReader();
-                    reader.onload = function(evt) {{
-                        const base64 = evt.target.result.split(',')[1];
-                        // Send to Python via bridge
-                        window.top.stBridges.send('file-upload-bridge', {{
-                            name: file.name,
-                            type: file.type,
-                            size: file.size,
-                            data: base64
-                        }});
-                    }};
-                    reader.readAsDataURL(file);
-
-                    // Clear input so same file can be selected again
-                    fileInput.value = '';
-                }};
-            }})();
-        </script>
-    ''', iframe=False)
 
     # Chat input at bottom
     prompt = st.chat_input("How can I help you today?")
