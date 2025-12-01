@@ -89,6 +89,9 @@ def show_sidebar():
             current_conv = get_conversation(current_conv_id)
             if current_conv:
                 st.markdown("### Current Chat")
+                # Show chat name
+                display_title = current_conv.title[:30] + "..." if len(current_conv.title) > 30 else current_conv.title
+                st.caption(f"💬 {display_title}")
 
                 # Save/unsave button
                 if current_conv.is_saved:
@@ -98,7 +101,6 @@ def show_sidebar():
                 else:
                     if st.button("💾 Save Chat", use_container_width=True):
                         update_conversation(current_conv_id, is_saved=True)
-                        st.success("Chat saved!")
                         st.rerun()
 
                 # Rename conversation
