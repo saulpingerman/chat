@@ -144,14 +144,6 @@ def show_chat_page():
         conv = create_conversation(user.id, "New Chat")
         st.session_state["current_conversation"] = conv.id
 
-    # Show pending files indicator if any
-    if st.session_state.get("pending_files"):
-        file_names = ", ".join([f["name"] for f in st.session_state["pending_files"]])
-        st.info(f"📎 Attached: {file_names}")
-        if st.button("✕ Clear attachments", key="clear_files"):
-            st.session_state["pending_files"] = []
-            st.rerun()
-
     # Display chat messages
     display_chat_messages()
 
@@ -213,6 +205,17 @@ def show_chat_page():
 
     # Use st._bottom to pin to bottom like chat_input does
     with st._bottom:
+        # Show pending files indicator if any (small, above input)
+        if st.session_state.get("pending_files"):
+            file_names = ", ".join([f["name"] for f in st.session_state["pending_files"]])
+            cols = st.columns([10, 1])
+            with cols[0]:
+                st.caption(f"📎 {file_names}")
+            with cols[1]:
+                if st.button("✕", key="clear_files", help="Clear attachments"):
+                    st.session_state["pending_files"] = []
+                    st.rerun()
+
         with st.container(key="BOTTOM-CONTAINER"):
             col1, col2 = st.columns([1, 30])
             with col1:
