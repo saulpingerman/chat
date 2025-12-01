@@ -6,7 +6,8 @@ import streamlit as st
 from typing import Optional
 
 from chat.config import (
-    get_config, APP_NAME, APP_VERSION,
+    get_config, APP_NAME, APP_FULL_NAME, APP_VERSION,
+    AUTHOR_NAME, AUTHOR_EMAIL,
     COST_PER_1M_INPUT_TOKENS, COST_PER_1M_OUTPUT_TOKENS
 )
 from chat.db.models import (
@@ -31,8 +32,20 @@ def show_sidebar():
 
     with st.sidebar:
         # App header
-        st.markdown(f"## {APP_NAME}")
-        st.caption(f"v{APP_VERSION}")
+        st.markdown(
+            f'<div style="text-align: center; width: 100%; margin-top: -1rem;">'
+            f'<div style="font-size: 3rem; font-weight: 900; letter-spacing: 0.3rem;">{APP_NAME}</div>'
+            f'<div style="font-size: 0.85rem; color: #888; margin-top: -0.5rem;">{APP_FULL_NAME}</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f'<div style="text-align: center; font-size: 0.8rem; color: #888; margin-bottom: 1rem;">'
+            f'Created by: {AUTHOR_NAME}<br/>'
+            f'<a href="mailto:{AUTHOR_EMAIL}" style="color: #888;">{AUTHOR_EMAIL}</a>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
         st.divider()
 
         # New chat button
@@ -108,6 +121,7 @@ def show_sidebar():
         st.markdown("### Backend")
         st.caption(f"🔗 {config.display_name}")
         st.caption(f"🤖 Claude Sonnet 4.5")
+        st.caption(f"📦 v{APP_VERSION}")
 
         st.divider()
 

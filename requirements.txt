@@ -2,6 +2,7 @@
 
 # Web framework
 streamlit>=1.28.0
+extra-streamlit-components>=0.1.60
 
 # AWS SDK
 boto3>=1.34.0

@@ -61,7 +61,10 @@ def get_config() -> EnvironmentConfig:
 
 # Application settings
 APP_NAME = "CHAT"
+APP_FULL_NAME = "Cloud-Hosted AI Terminal"
 APP_VERSION = "1.0.0"
+AUTHOR_NAME = "Paul Singerman"
+AUTHOR_EMAIL = "pgs16@arl.psu.edu"
 
 # Database settings
 DATABASE_PATH = os.environ.get("CHAT_DB_PATH", "chat.db")
@@ -69,7 +72,7 @@ DATABASE_PATH = os.environ.get("CHAT_DB_PATH", "chat.db")
 # JWT settings
 JWT_SECRET_KEY = os.environ.get("CHAT_JWT_SECRET", "change-this-in-production-use-a-real-secret")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = 24
+JWT_EXPIRATION_HOURS = 168  # 7 days - session persists as long as browser is open
 
 # File upload settings
 MAX_FILE_SIZE_MB = 25

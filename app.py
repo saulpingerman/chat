@@ -27,7 +27,7 @@ def main():
     # Apply custom styles
     apply_styles()
 
-    # Check authentication
+    # Check authentication (checks session state and query params)
     if not check_auth():
         show_auth_page()
         return

@@ -157,18 +157,28 @@ def create_user(username: str, email: str, password: str) -> Optional[User]:
     """Create a new user."""
     user_id = str(uuid.uuid4())
     password_hash = hash_password(password)
+    now = datetime.now()
 
     with get_connection() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute(
                 """
-                INSERT INTO users (id, username, email, password_hash)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO users (id, username, email, password_hash, created_at)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (user_id, username.lower(), email.lower(), password_hash)
+                (user_id, username.lower(), email.lower(), password_hash, now.isoformat())
             )
-            return get_user_by_id(user_id)
+            # Return user object directly instead of querying (avoids transaction issues)
+            return User(
+                id=user_id,
+                username=username.lower(),
+                email=email.lower(),
+                password_hash=password_hash,
+                created_at=now,
+                total_input_tokens=0,
+                total_output_tokens=0
+            )
         except sqlite3.IntegrityError:
             return None
 
@@ -383,10 +393,23 @@ def add_message(
     now = datetime.now()
 
     # Serialize content to JSON if it's not a string
+    # Bedrock API expects {"text": "..."} without a "type" key
     if isinstance(content, str):
-        content_json = json.dumps([{"type": "text", "text": content}])
+        content_json = json.dumps([{"text": content}])
     else:
-        content_json = json.dumps(content)
+        # Clean up any "type" keys that might be in the content
+        if isinstance(content, list):
+            cleaned_content = []
+            for block in content:
+                if isinstance(block, dict):
+                    # Remove "type" key if present - Bedrock doesn't accept it
+                    cleaned = {k: v for k, v in block.items() if k != "type"}
+                    cleaned_content.append(cleaned)
+                else:
+                    cleaned_content.append(block)
+            content_json = json.dumps(cleaned_content)
+        else:
+            content_json = json.dumps(content)
 
     with get_connection() as conn:
         cursor = conn.cursor()

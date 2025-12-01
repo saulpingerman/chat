@@ -143,31 +143,72 @@ def show_chat_page():
         conv = create_conversation(user.id, "New Chat")
         st.session_state["current_conversation"] = conv.id
 
-    # Main chat area
-    st.title("CHAT")
+    # File upload dialog state
+    if "show_file_upload" not in st.session_state:
+        st.session_state["show_file_upload"] = False
 
-    # File uploader (above chat)
-    uploaded_files = st.file_uploader(
-        "Upload files (optional)",
-        accept_multiple_files=True,
-        type=[ext.lstrip('.') for ext in ALLOWED_EXTENSIONS.keys()],
-        help=f"Supported: {', '.join(ALLOWED_EXTENSIONS.keys())}. Max {MAX_FILE_SIZE_MB}MB each.",
-        key="file_uploader"
-    )
-
-    # Display uploaded files preview
-    if uploaded_files:
-        cols = st.columns(min(len(uploaded_files), 4))
-        for i, f in enumerate(uploaded_files):
-            with cols[i % 4]:
-                icon = get_file_icon(ALLOWED_EXTENSIONS.get(f".{f.name.split('.')[-1].lower()}", ""))
-                st.caption(f"{icon} {f.name[:20]}...")
+    # Show file uploader at top if toggled (before chat messages)
+    uploaded_files = None
+    if st.session_state.get("show_file_upload"):
+        uploaded_files = st.file_uploader(
+            "Attach files",
+            accept_multiple_files=True,
+            type=[ext.lstrip('.') for ext in ALLOWED_EXTENSIONS.keys()],
+            help=f"Max {MAX_FILE_SIZE_MB}MB each.",
+            key="file_uploader",
+            label_visibility="collapsed"
+        )
+        if uploaded_files:
+            file_names = ", ".join([f.name for f in uploaded_files])
+            st.caption(f"📎 {file_names}")
 
     # Display chat messages
     display_chat_messages()
 
-    # Chat input
-    if prompt := st.chat_input("Send a message..."):
+    # CSS for bottom input layout with button next to chat input
+    st.markdown(
+        """
+        <style>
+        .st-key-BOTTOM-CONTAINER, .st-key-BUTTONS-CONTAINER {
+            display: flex;
+            flex-direction: row !important;
+            flex-wrap: nowrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .st-key-BUTTONS-CONTAINER[data-testid="stVerticalBlock"] div {
+            width: max-content !important;
+        }
+        .st-key-BOTTOM-CONTAINER > div:first-child {
+            min-width: max-content;
+            max-width: max-content;
+        }
+        .st-key-BOTTOM-CONTAINER > div:last-child {
+            flex-grow: 1;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Use st._bottom to place elements at the bottom like chat_input does
+    with st._bottom:
+        with st.container(key="BOTTOM-CONTAINER"):
+            buttons_container = st.container(key="BUTTONS-CONTAINER")
+            input_container = st.container(key="INPUT-CONTAINER")
+
+    # Add attach button to buttons container
+    with buttons_container:
+        if st.button("📎", key="attach_btn_main", help="Attach files"):
+            st.session_state["show_file_upload"] = not st.session_state.get("show_file_upload", False)
+            st.rerun()
+
+    # Add chat input to input container
+    with input_container:
+        prompt = st.chat_input("How can I help you today?")
+
+    # Handle chat input
+    if prompt:
         # Process any uploaded files
         processed_files = []
         if uploaded_files:
@@ -237,7 +278,7 @@ def show_chat_page():
         add_message(
             conv_id,
             "assistant",
-            [{"type": "text", "text": full_response}],
+            [{"text": full_response}],
             input_tokens=input_tokens,
             output_tokens=output_tokens
         )

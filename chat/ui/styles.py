@@ -32,14 +32,19 @@ MAIN_CSS = """
     overflow-x: auto;
 }
 
-/* Sidebar styling */
+/* Sidebar styling - dark mode compatible */
 section[data-testid="stSidebar"] {
-    background-color: #f8f9fa;
+    background-color: #262730;
     padding: 1rem;
 }
 
 section[data-testid="stSidebar"] .block-container {
     padding-top: 1rem;
+}
+
+/* Ensure sidebar text is visible in dark mode */
+section[data-testid="stSidebar"] * {
+    color: inherit;
 }
 
 /* Button styling */
